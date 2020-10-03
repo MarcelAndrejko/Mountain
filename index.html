@@ -1,0 +1,110 @@
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="Mountain.js"></script>
+    <script src="Vector3d.js"></script> 
+    <script src="Transform3d.js"></script> 
+    <script src="Svg.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: black;
+        }
+  
+        svg {
+            margin: 0;
+            padding: 0;
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body id="canvas">
+</body>
+<script>
+
+    let mountain = new Mountain(70, 0.7);
+    let data = mountain.getData();
+
+    let  points = new Array(data.length);
+    for (var i=0; i<data.length; i++) {
+        points[i] = new Array(data.length);
+        for (var j=0; j<data.length; j++) {
+            points[i][j] = [ i-data.length/2, j-data.length/2, data[i][j] ];
+        }
+    }
+
+    function createPolygons(points) {
+        let res = [];
+        for (let j=0; j<points.length-1; j++) {
+            for (let i=0; i<points.length-1; i++) {
+                let p1 = points[i][j];
+                let p2 = points[i+1][j];
+                let p3 = points[i+1][j+1];
+                let p4 = points[i][j+1];
+                res.push([p1, p2, p3, p4, Vector3d.crossProduct(Vector3d.createVector(p4, p2), Vector3d.createVector(p3, p1))]);
+            }
+        }
+        return res;  
+    }
+
+    let t = new Transform3d();
+    t.setRotationAngleZ(1);
+    t.setRotationAngleX(45);
+
+    let svg = null;
+    let baseColor = [200, 200, 200];
+  
+    svg = new Svg();
+    svg.setViewBox(-points.length, -points.length, 2*points.length, 2*points.length);
+    document.getElementById('canvas').appendChild(svg.getSvgElement());
+
+    function draw() {
+        newSvg = new Svg();
+        newSvg.setViewBox(-points.length, -points.length, 2*points.length, 2*points.length);
+
+        for (let i=0; i<points.length; i++)
+            for (let j=0; j<points.length; j++)
+                points[i][j] = t.rotateZ(points[i][j]); 
+        
+        polygons = createPolygons(points).sort(function (a, b) {
+            // painter algorithm
+            if (a[0][1] > b[0][1])
+                return 1;
+            if (a[0][1] < b[0][1])
+                return -1;
+            return 0;
+        });
+           
+        for (var i=0; i<polygons.length; i++) {
+            let tmp = [
+                t.rotateX(polygons[i][0]),
+                t.rotateX(polygons[i][1]),
+                t.rotateX(polygons[i][2]),
+                t.rotateX(polygons[i][3]),
+                t.rotateX(polygons[i][4]),
+            ] 
+            let c = Vector3d.cos([points.length, points.length, -points.length], tmp[4]);
+            newSvg.setStrokeColor([Math.round(baseColor[0]*c),Math.round(baseColor[1]*c),Math.round(baseColor[2]*c)]);
+            newSvg.tetragon(tmp[0], tmp[1], tmp[2], tmp[3]);
+        }
+       
+        document.getElementById('canvas').removeChild(svg.getSvgElement());
+        svg = newSvg;
+        document.getElementById('canvas').appendChild(svg.getSvgElement());
+        
+        window.requestAnimationFrame(draw);                
+    }
+   
+    draw();
+
+</script>
+</html>
